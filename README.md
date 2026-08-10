@@ -1,140 +1,83 @@
-# BIA EI Profile Coach
+# EI Profile Coach — Investment Desk Edition
 
-A scenario-based Emotional Intelligence profiling tool for the Feedback
-Mastery Programme (Brunei Investment Agency), built from the full
-`BIA_EI_Profile_Coach_GPT_v1_2.txt` system instruction (RTCC v2.0,
-authored by Winston H.K. Chew).
+A scenario-based emotional intelligence assessment. Eight real-world feedback moments from an investment context, mapped to Goleman's four domains, resolving to **one** development focus and a printable one-page brief.
 
-Participants work through eight feedback scenarios in conversation with
-the coach, then receive a personalised EI Profile Card mapping their
-responses across Goleman's four domains (Self-Awareness, Self-Regulation,
-Empathy, Social Skills), with an optional reflection phase afterward.
+Built for live in-session delivery. No build step, no npm install, no API key.
 
-## No Anthropic API key needed
+---
 
-This runs on **Netlify's AI Gateway**, which gives Netlify Functions
-access to Claude automatically — no Anthropic account, no API key to
-paste anywhere. Netlify bills the usage as **credits on your Netlify
-plan** instead.
+## Files
 
-**One thing to know:** the Gateway only activates after the site's
-**first production deploy**. If the very first session you try returns
-an error, deploy (or redeploy) once and try again — after that it works
-automatically.
-
-## How the whole system instruction is used
-
-`netlify/functions/lib/system-prompt.mjs` contains the **entire, verbatim
-text** of `BIA_EI_Profile_Coach_GPT_v1_2.txt` — every section, rule,
-scenario, scoring key, narrative, and guardrail — exactly as authored.
-It's sent as Claude's system prompt on every turn. The single
-`netlify/functions/coach.mjs` function just forwards the running
-conversation to Claude and returns its reply; there's no separate app
-logic re-implementing phases, scoring, or scenario order; the model
-follows the document's own Core Engagement Structure (Section 6) exactly
-as it was designed to.
-
-**If you revise the source document**, regenerate this file rather than
-hand-editing it, so the deployed prompt never drifts from the authored
-version. From the project root:
-
-```bash
-python3 - << 'PY'
-with open('BIA_EI_Profile_Coach_GPT_v1_2.txt', encoding='utf-8') as f:
-    raw = f.read()
-escaped = raw.replace('\\', '\\\\').replace('`', '\\`').replace('${', '\\${')
-with open('netlify/functions/lib/system-prompt.mjs', 'w', encoding='utf-8') as f:
-    f.write("export const SYSTEM_PROMPT = `" + escaped + "`;\n")
-PY
+```
+index.html                     the whole app (vanilla JS, no dependencies)
+netlify.toml                   publish + functions config
+netlify/functions/coach.mjs    generates the tailored brief via Netlify AI Gateway
+README.md                      this file
 ```
 
-(A copy of the source `.txt` isn't included in this project by default —
-add your revised version alongside it before running the snippet above.)
+## Deploy
 
-## Cost / abuse note
+**Option A — drag and drop (fastest)**
+1. Zip the folder contents (not the folder itself).
+2. Go to Netlify → Add new project → Deploy manually.
+3. Drop the zip.
 
-Anyone with your site's URL can start a session, and each session spends
-Netlify credits over its ~20-minute conversation. If you're sharing the
-link broadly:
+**Option B — Git**
+Push the folder to a repo and connect it in Netlify. Leave the build command empty; publish directory `.`.
 
-- Set the optional `ACCESS_CODE` environment variable (see below) so
-  only participants you've given the code to can start a session.
-- Consider Netlify's built-in rate limiting for extra protection:
-  https://docs.netlify.com/manage/security/secure-access-to-sites/rate-limiting/
+**One thing to know:** the AI Gateway only activates after a project has had at least one *production* deploy. If the brief comes back as "the standard brief for this domain" on your very first preview deploy, publish to production once and reload.
 
-## Deploy it
+## How the AI key works
 
-**Option A — connect a Git repo (recommended)**
+Netlify injects `ANTHROPIC_API_KEY` and `ANTHROPIC_BASE_URL` into every Function at runtime. The function reads them from `process.env` and calls the Messages API through Netlify's gateway. There is nothing to configure, and no key ever touches the browser.
 
-1. Push this folder to a new GitHub repository.
-2. In Netlify: **Add new site → Import an existing project**, pick the
-   repo. Settings are auto-detected from `netlify.toml`.
-3. Deploy. That first deploy is also what activates the AI Gateway — no
-   environment variables are required to get it working.
-4. Optional: add an `ACCESS_CODE` environment variable under **Site
-   configuration → Environment variables** for a class-code gate, then
-   redeploy.
+Available on Netlify's Free, Personal and Pro plans (credit-based). Usage bills against your Netlify credits.
 
-**Option B — Netlify CLI**
+---
 
-```bash
-npm install -g netlify-cli
-cd ei-profile-coach
-netlify login
-netlify deploy --prod
-```
+## The scoring model
 
-## Local development
+This is the part that makes it defensible, so it is worth understanding before you present it.
 
-```bash
-netlify dev
-```
+Each of the eight situations is **anchored to one domain**, and its four responses are four levels of maturity *within that domain*, scored 0 to 3. The options are shuffled so the ladder is invisible to the participant.
 
-The Netlify CLI supports the AI Gateway locally, so this should work
-without any `.env` file. For the class-code gate while testing locally,
-create a `.env` file (not committed) with `ACCESS_CODE=...`.
+| Domain | Situations | Range |
+|---|---|---|
+| Self-Awareness | Quarterly review · 360 feedback | 0–6 |
+| Self-Regulation | Red-day email · Third week behind | 0–6 |
+| Empathy | Performance conversation · Client redemption | 0–6 |
+| Social Skills | Sector call · Two juniors | 0–6 |
 
-## Troubleshooting: "The coach did not respond"
+The **lowest** domain becomes the development focus. Ties break in Goleman's developmental sequence — self-awareness, then self-regulation, then empathy, then social skills — because regulation without awareness has nothing to act on.
 
-This app's system prompt is unusually large (~16,000 tokens — it's your
-entire authored document), and Netlify's standard functions have a
-synchronous execution limit (10 seconds by default, 26 seconds on Pro on
-request). A full reply — especially the Profile Card at the end — can take
-longer than that to generate in full.
+Scoring runs entirely in the browser, instantly. Only the brief itself calls the model, which means one AI request per participant, not nine.
 
-To fix this, `coach.mjs` streams Claude's reply straight through to the
-browser token-by-token instead of waiting to assemble the whole message
-first, and the system prompt is marked for prompt caching so turns after
-the first one in a session skip re-processing all ~16k tokens (cached for
-5 minutes). Between the two, most turns should complete comfortably.
+## Reliability in a live room
 
-The SSE parsing (event/data lines, JSON frames) happens once, server-side,
-in `streamClaudeText()` (`netlify/functions/lib/anthropic.mjs`) — it hands
-the browser a plain stream of text characters with no envelope around
-them. The client just reads bytes and appends them; no event-format
-parsing runs in browser JS.
+Every scenario has a hand-written fallback brief built into the page. If the gateway is slow, rate-limited or unreachable, the participant still gets a full, coherent, domain-specific result and a small note that it is the standard version. **The activity cannot fail in front of your room.**
 
-If you still see this error after redeploying with these changes:
-- Confirm the deploy succeeded and check **Functions → coach → Logs** in
-  the Netlify dashboard for the actual error — it will show a more
-  specific message than the browser's generic one.
-- If you're on a Pro plan and it's still tight, you can request the
-  extended 26-second synchronous function timeout from Netlify support.
-- As a last resort, lowering `maxTokens` in `coach.mjs` (e.g. to 2048)
-  shortens the longest possible reply and reduces the risk further,
-  though the Profile Card format is fairly verbose by design.
+On rate limits: one brief costs roughly 3 Netlify credits. The Free plan allows 90 credits per minute, so around 30 participants finishing simultaneously is the ceiling. A cohort of 25–30 will stagger naturally over two or three minutes and sit comfortably inside it. If you are running 50+, move to Personal (450/min).
 
-## Notes
+## The PDF
 
-- Uses `claude-sonnet-5` via Netlify's AI Gateway, at the temperature
-  (0.35) and output ceiling (4,096 tokens) specified in the source
-  document's platform settings.
-- No database — each participant's session lives only in their browser
-  tab; nothing is stored server-side, matching Section 12's "no session
-  retention" disclosure.
-- The class-code check is a light deterrent, not real authentication —
-  fine for a facilitated cohort, not for anything requiring real access
-  control.
-- The crisis-response resources embedded in the system instruction
-  (Talian Harapan Brunei, PAPDA, Crisis Text Line) are part of the
-  authored document and are preserved verbatim.
+The "Download as PDF" button opens the browser print dialogue with a print stylesheet that strips the interface and leaves only the brief. Participants choose "Save as PDF" as the destination. The name they type is used as the filename.
+
+Tell them to type their name *before* they hit download.
+
+---
+
+## Facilitating it
+
+**Before:** ask them to answer as they behave on a difficult day, not as they aspire to behave on a good one. Say it twice. It is the single biggest determinant of whether the profile is worth anything.
+
+**During:** eight minutes. Keyboard shortcuts 1–4 select options, which speeds up anyone on a laptop.
+
+**After:** the highest-value debrief question is not "do you agree with your focus domain?" It is: **"Who in this room already knew this about you?"** That question moves the result from self-report to social reality, and it usually produces the moment the session is remembered for.
+
+**Pairing:** get them to read their "say this out loud this week" line to a partner. Out loud. The discomfort of hearing it in their own voice is the intervention.
+
+## Changing the scenarios
+
+All content lives in the `SITUATIONS` array near the top of the `<script>` block in `index.html`. Each situation needs a `domain`, a `setting`, a `scene`, a `prompt`, and exactly four options scored 0, 1, 2 and 3 in any display order. Keep two situations per domain to preserve the 0–6 range.
+
+To retarget the app for a different sector, rewrite `setting` and `scene`, keep the maturity ladder, and adjust the coaching voice in the `system` prompt inside `coach.mjs`.

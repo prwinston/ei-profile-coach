@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>EI Profile Coach</title>
+<meta name="description" content="A scenario-based emotional intelligence profile for investment professionals." />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;1,6..72,300&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F2F4F3;
+    --paper-2:#E9EDEB;
+    --card:#FBFCFC;
+    --ink:#12211F;
+    --ink-soft:#55655F;
+    --ink-faint:#849691;
+    --rule:#C7D1CD;
+    --rule-soft:#DDE4E1;
+    --pine:#1F5E56;
+    --pine-deep:#123B36;
+    --ochre:#8F6212;
+    --ochre-wash:#F2E9D6;
+    --mono:"IBM Plex Mono", ui-monospace, monospace;
+    --sans:"Inter", system-ui, -apple-system, sans-serif;
+    --serif:"Newsreader", Georgia, serif;
+  }
+
+  *{box-sizing:border-box}
+
+  html,body{margin:0;padding:0}
+
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:var(--sans);
+    font-size:16px;
+    line-height:1.55;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  .shell{max-width:760px;margin:0 auto;padding:0 24px 96px}
+
+  /* ---------- masthead ---------- */
+  .masthead{
+    display:flex;justify-content:space-between;align-items:baseline;
+    gap:16px;padding:26px 0 14px;border-bottom:1px solid var(--ink);
+    margin-bottom:0;
+  }
+  .mark{
+    font-family:var(--mono);font-size:11px;font-weight:600;
+    letter-spacing:.16em;text-transform:uppercase;color:var(--pine);
+  }
+  .mark span{color:var(--ink-soft);font-weight:400}
+  .stamp{
+    font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;
+    text-transform:uppercase;color:var(--ink-soft);
+  }
+
+  /* ---------- ledger progress ---------- */
+  .ledger{display:flex;gap:3px;padding:10px 0 0}
+  .ledger i{
+    display:block;height:3px;flex:1;background:var(--rule-soft);
+    transition:background .25s ease;
+  }
+  .ledger i.done{background:var(--pine)}
+  .ledger i.now{background:var(--ochre)}
+
+  /* ---------- screens ---------- */
+  .screen{display:none}
+  .screen.live{display:block;animation:rise .32s ease both}
+  @keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+  /* ---------- intro ---------- */
+  .lede{padding:44px 0 0}
+  .lede h1{
+    font-family:var(--serif);font-weight:300;font-size:clamp(38px,6.2vw,58px);
+    line-height:1.04;letter-spacing:-.018em;margin:0 0 20px;max-width:14ch;
+  }
+  .lede h1 em{font-style:italic;color:var(--pine)}
+  .lede p{
+    font-family:var(--serif);font-size:19px;line-height:1.6;color:var(--ink-soft);
+    max-width:56ch;margin:0 0 16px;font-weight:300;
+  }
+
+  .terms{
+    margin:34px 0 0;border-top:1px solid var(--rule);
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+  }
+  .term{padding:16px 18px 16px 0;border-right:1px solid var(--rule-soft)}
+  .term:last-child{border-right:0}
+  .term dt{
+    font-family:var(--mono);font-size:10px;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--ochre);margin-bottom:5px;
+  }
+  .term dd{margin:0;font-size:14px;color:var(--ink-soft);line-height:1.45}
+
+  /* ---------- buttons ---------- */
+  .btn{
+    font-family:var(--mono);font-size:12px;font-weight:600;letter-spacing:.12em;
+    text-transform:uppercase;background:var(--pine);color:#fff;border:0;
+    padding:16px 30px;cursor:pointer;transition:background .18s ease;
+    display:inline-flex;align-items:center;gap:10px;
+  }
+  .btn:hover{background:var(--pine-deep)}
+  .btn:focus-visible{outline:2px solid var(--ochre);outline-offset:3px}
+  .btn.ghost{background:transparent;color:var(--pine);border:1px solid var(--rule);padding:14px 24px}
+  .btn.ghost:hover{background:var(--paper-2)}
+  .btn[disabled]{opacity:.45;cursor:not-allowed}
+
+  .linkback{
+    font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--ink-soft);background:none;border:0;padding:8px 0;cursor:pointer;
+  }
+  .linkback:hover{color:var(--pine)}
+
+  /* ---------- scenario ---------- */
+  .situation{padding:38px 0 0}
+  .eyebrow{
+    font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--ink-soft);margin-bottom:18px;display:flex;gap:14px;align-items:center;
+  }
+  .eyebrow b{color:var(--ink);font-weight:600}
+  .eyebrow s{flex:1;height:1px;background:var(--rule-soft);text-decoration:none}
+
+  .setting{
+    font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--ochre);margin-bottom:12px;
+  }
+  .scene{
+    font-family:var(--serif);font-weight:300;font-size:clamp(22px,3.4vw,27px);
+    line-height:1.45;letter-spacing:-.01em;margin:0 0 8px;
+  }
+  .prompt{
+    font-size:14px;color:var(--ink-soft);margin:14px 0 24px;
+    padding-top:14px;border-top:1px solid var(--rule-soft);
+  }
+
+  .options{display:flex;flex-direction:column;gap:0;border-top:1px solid var(--rule)}
+  .opt{
+    display:flex;gap:16px;align-items:flex-start;width:100%;text-align:left;
+    background:transparent;border:0;border-bottom:1px solid var(--rule-soft);
+    padding:18px 14px 18px 4px;cursor:pointer;font:inherit;color:var(--ink);
+    transition:background .15s ease,padding .15s ease;
+  }
+  .opt:hover{background:var(--card);padding-left:10px}
+  .opt:focus-visible{outline:2px solid var(--ochre);outline-offset:-2px}
+  .opt .tick{
+    flex:0 0 auto;width:13px;height:13px;margin-top:5px;border:1px solid var(--rule);
+    border-radius:50%;transition:all .15s ease;
+  }
+  .opt:hover .tick{border-color:var(--pine)}
+  .opt.picked{background:var(--ochre-wash)}
+  .opt.picked .tick{background:var(--ochre);border-color:var(--ochre);box-shadow:inset 0 0 0 2px var(--ochre-wash)}
+  .opt span{font-size:15.5px;line-height:1.5}
+
+  .navrow{display:flex;justify-content:space-between;align-items:center;margin-top:22px}
+
+  /* ---------- waiting ---------- */
+  .waiting{padding:110px 0;text-align:center}
+  .waiting .bar{width:180px;height:2px;background:var(--rule-soft);margin:0 auto 22px;overflow:hidden}
+  .waiting .bar i{display:block;height:2px;width:40%;background:var(--pine);animation:sweep 1.25s ease-in-out infinite}
+  @keyframes sweep{0%{transform:translateX(-110%)}100%{transform:translateX(360%)}}
+  .waiting p{font-family:var(--mono);font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft)}
+
+  /* ---------- the factsheet (signature) ---------- */
+  .sheet{
+    background:var(--card);border:1px solid var(--rule);margin-top:34px;
+    padding:34px 34px 40px;
+  }
+  .sheet-head{
+    display:flex;justify-content:space-between;align-items:flex-end;gap:20px;
+    border-bottom:2px solid var(--ink);padding-bottom:14px;margin-bottom:22px;
+  }
+  .sheet-head h2{
+    font-family:var(--serif);font-weight:400;font-size:27px;letter-spacing:-.01em;margin:0;
+  }
+  .sheet-head .meta{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-soft);text-align:right;line-height:1.7}
+
+  .nameline{display:flex;align-items:center;gap:12px;margin-bottom:26px}
+  .nameline label{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft);white-space:nowrap}
+  .nameline input{
+    flex:1;font-family:var(--serif);font-size:19px;color:var(--ink);
+    background:transparent;border:0;border-bottom:1px solid var(--rule);padding:5px 2px;
+  }
+  .nameline input:focus{outline:0;border-bottom-color:var(--pine)}
+
+  .sectionlabel{
+    font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--ochre);padding-bottom:8px;margin:30px 0 14px;border-bottom:1px solid var(--rule-soft);
+  }
+  .sectionlabel:first-of-type{margin-top:0}
+
+  /* domain bars */
+  .bars{display:flex;flex-direction:column;gap:2px}
+  .bar-row{display:grid;grid-template-columns:132px 1fr 42px;align-items:center;gap:14px;padding:9px 8px 9px 0}
+  .bar-row.focus{background:var(--ochre-wash);padding-left:8px;margin-left:-8px}
+  .bar-row .nm{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase}
+  .bar-row.focus .nm{color:var(--ochre);font-weight:600}
+  .track{height:9px;background:var(--paper-2);position:relative}
+  .fill{height:9px;background:var(--pine);transition:width .7s cubic-bezier(.2,.8,.2,1)}
+  .bar-row.focus .fill{background:var(--ochre)}
+  .val{font-family:var(--mono);font-size:12px;font-variant-numeric:tabular-nums;text-align:right;color:var(--ink-soft)}
+  .bar-row.focus .val{color:var(--ochre);font-weight:600}
+
+  .focusnote{
+    font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--ochre);margin-top:12px;display:flex;gap:8px;align-items:center;
+  }
+  .focusnote s{width:20px;height:1px;background:var(--ochre);text-decoration:none}
+
+  .headline{
+    font-family:var(--serif);font-weight:400;font-size:24px;line-height:1.35;
+    letter-spacing:-.01em;margin:0 0 16px;
+  }
+  .read{font-size:15.5px;line-height:1.62;color:var(--ink-soft);margin:0}
+
+  .evidence{list-style:none;padding:0;margin:0}
+  .evidence li{
+    font-size:14.5px;line-height:1.55;color:var(--ink-soft);
+    padding:11px 0 11px 20px;border-bottom:1px solid var(--rule-soft);position:relative;
+  }
+  .evidence li:before{content:"";position:absolute;left:0;top:19px;width:9px;height:1px;background:var(--ochre)}
+  .evidence li:last-child{border-bottom:0}
+
+  .practice{padding:16px 0;border-bottom:1px solid var(--rule-soft);display:grid;grid-template-columns:26px 1fr;gap:14px}
+  .practice:last-child{border-bottom:0}
+  .practice .no{font-family:var(--mono);font-size:11px;color:var(--ochre);padding-top:3px;font-variant-numeric:tabular-nums}
+  .practice h4{font-size:15px;font-weight:600;margin:0 0 6px;letter-spacing:-.005em}
+  .practice p{font-size:14.5px;line-height:1.55;color:var(--ink-soft);margin:0 0 8px}
+  .practice .hook{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--pine)}
+
+  .script{
+    font-family:var(--serif);font-style:italic;font-weight:300;font-size:20px;line-height:1.5;
+    color:var(--ink);border-left:2px solid var(--ochre);padding:4px 0 4px 18px;margin:0;
+  }
+  .warn{font-size:14.5px;line-height:1.55;color:var(--ink-soft);margin:0}
+
+  .sheet-foot{
+    margin-top:32px;padding-top:14px;border-top:1px solid var(--rule);
+    font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--ink-soft);line-height:1.8;
+  }
+
+  .actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:26px}
+
+  .notice{
+    font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;
+    color:var(--ochre);background:var(--ochre-wash);padding:10px 14px;margin-bottom:20px;
+  }
+
+  @media (max-width:640px){
+    .shell{padding:0 18px 72px}
+    .sheet{padding:24px 20px 30px}
+    .bar-row{grid-template-columns:100px 1fr 38px;gap:10px}
+    .term{border-right:0;border-bottom:1px solid var(--rule-soft)}
+  }
+
+  @media (prefers-reduced-motion:reduce){
+    *{animation:none!important;transition:none!important}
+  }
+
+  /* ---------- print / PDF ---------- */
+  @media print{
+    @page{margin:14mm}
+    body{background:#fff;font-size:11pt}
+    .masthead,.ledger,.actions,.no-print{display:none!important}
+    .shell{max-width:none;padding:0}
+    .sheet{border:0;padding:0;margin:0;background:#fff}
+    .nameline input{border-bottom:0;font-size:17pt}
+    .bar-row.focus,.opt.picked{background:#F2E9D6!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .fill{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .practice,.evidence li{break-inside:avoid}
+    .sectionlabel{break-after:avoid}
+  }
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+  <header class="masthead no-print">
+    <div class="mark">EI Profile Coach <span>/ Investment Desk Edition</span></div>
+    <div class="stamp" id="stamp">Four domains · Eight situations</div>
+  </header>
+  <div class="ledger no-print" id="ledger" hidden></div>
+
+  <!-- ============ INTRO ============ -->
+  <section class="screen live" id="s-intro">
+    <div class="lede">
+      <h1>You cannot rate your way to <em>self-awareness</em>.</h1>
+      <p>Ask someone to score their own empathy out of five and they will tell you what they hope is true. Ask them what they would actually say to a portfolio manager who has just been taken apart in a review, and something more honest comes out.</p>
+      <p>Eight situations. No right answers on display. At the end you get one development focus, not four, because attention that is spread across everything changes nothing.</p>
+      <dl class="terms">
+        <div class="term"><dt>Duration</dt><dd>Eight minutes, uninterrupted</dd></div>
+        <div class="term"><dt>Method</dt><dd>Behavioural choice, not self-rating</dd></div>
+        <div class="term"><dt>Output</dt><dd>A one-page brief you can print</dd></div>
+      </dl>
+      <div style="margin-top:34px">
+        <button class="btn" id="begin">Begin the first situation</button>
+      </div>
+      <p style="font-size:13px;font-family:var(--sans);color:var(--ink-soft);margin-top:20px;max-width:52ch">
+        Answer as you would actually behave on a difficult day, not as you would like to behave on a good one. The profile is only as useful as your honesty about the first.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ ASSESSMENT ============ -->
+  <section class="screen" id="s-run">
+    <div class="situation">
+      <div class="eyebrow"><b id="counter">01 / 08</b><s></s><span id="dom-hint">Feedback moment</span></div>
+      <div class="setting" id="setting"></div>
+      <p class="scene" id="scene"></p>
+      <p class="prompt" id="prompt"></p>
+      <div class="options" id="options"></div>
+      <div class="navrow">
+        <button class="linkback" id="back">← Previous</button>
+        <span class="stamp" id="hint">Select the closest match</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ WAITING ============ -->
+  <section class="screen" id="s-wait">
+    <div class="waiting">
+      <div class="bar"><i></i></div>
+      <p id="waitmsg">Reading your pattern</p>
+    </div>
+  </section>
+
+  <!-- ============ RESULT ============ -->
+  <section class="screen" id="s-out">
+    <div id="fallback-notice"></div>
+    <div class="sheet" id="sheet">
+      <div class="sheet-head">
+        <h2>Emotional Intelligence Brief</h2>
+        <div class="meta">EI Profile Coach<br><span id="datestamp"></span></div>
+      </div>
+
+      <div class="nameline">
+        <label for="pname">Prepared for</label>
+        <input id="pname" type="text" placeholder="Type your name" autocomplete="name" />
+      </div>
+
+      <div class="sectionlabel">Domain profile</div>
+      <div class="bars" id="bars"></div>
+      <div class="focusnote"><s></s><span id="focusline"></span></div>
+
+      <div class="sectionlabel">The read</div>
+      <h3 class="headline" id="headline"></h3>
+      <p class="read" id="read"></p>
+
+      <div class="sectionlabel">What your choices showed</div>
+      <ul class="evidence" id="evidence"></ul>
+
+      <div class="sectionlabel">Three practices for the next thirty days</div>
+      <div id="practices"></div>
+
+      <div class="sectionlabel">Say this out loud this week</div>
+      <p class="script" id="script"></p>
+
+      <div class="sectionlabel">Watch for</div>
+      <p class="warn" id="warn"></p>
+
+      <div class="sheet-foot">
+        Framework: Goleman's four domains of emotional intelligence.<br>
+        Scenario-based behavioural assessment. Indicative, not diagnostic.
+      </div>
+    </div>
+
+    <div class="actions no-print">
+      <button class="btn" id="download">Download as PDF</button>
+      <button class="btn ghost" id="restart">Start again</button>
+    </div>
+  </section>
+
+</div>
+
+<script>
+/* ==========================================================================
+   SCENARIOS
+   Each situation is anchored to one Goleman domain. The four responses are
+   four levels of maturity within that domain, scored 0-3, presented in
+   scrambled order so the ladder is not visible to the participant.
+   Two situations per domain. Domain total: 0-6.
+   ========================================================================== */
+
+const SITUATIONS = [
+  {
+    domain: "awareness",
+    setting: "Quarterly portfolio review",
+    scene: "The CIO says, in front of eight colleagues: \u201cYour conviction on the healthcare overweight is starting to look like stubbornness.\u201d You feel the heat rise in your chest.",
+    prompt: "What happens next inside you, honestly?",
+    options: [
+      { t: "You start assembling the data that will prove the position was right.", s: 1 },
+      { t: "You notice the heat, name it as embarrassment, and register that you get most defensive when your judgement as an analyst is questioned.", s: 3 },
+      { t: "You conclude the CIO has always favoured the macro team, and this is politics.", s: 0 },
+      { t: "You note that you are irritated and decide to revisit the comment later, when you are calmer.", s: 2 }
+    ]
+  },
+  {
+    domain: "regulation",
+    setting: "Down 4 percent, mid-morning",
+    scene: "A junior analyst emails the whole desk with a sell recommendation that contradicts your thesis, and the exposure numbers in it are wrong. Your reply is half-typed.",
+    prompt: "What do you do with the draft?",
+    options: [
+      { t: "Send it now. The error needs correcting fast, and publicly.", s: 0 },
+      { t: "Delete it and say nothing. Better to let it pass than escalate on a red day.", s: 2 },
+      { t: "Save the draft, leave it twenty minutes, then correct the number privately and take up the thesis in the afternoon huddle.", s: 3 },
+      { t: "Send it, but soften the opening line so it does not read as an attack.", s: 1 }
+    ]
+  },
+  {
+    domain: "empathy",
+    setting: "Performance conversation",
+    scene: "You are giving feedback to a portfolio manager whose fund has lagged for three quarters. Ten minutes in, she is agreeing with everything you say, quickly, and taking no notes.",
+    prompt: "How do you respond to what you are seeing?",
+    options: [
+      { t: "Take the agreement at face value and wrap up early. She has clearly got it.", s: 0 },
+      { t: "Ask her to summarise back what she is taking away from the conversation.", s: 2 },
+      { t: "Slow down and name it: \u201cYou are agreeing quickly. I would rather know what you actually think of this.\u201d", s: 3 },
+      { t: "Push harder on the message to make sure it has properly landed.", s: 1 }
+    ]
+  },
+  {
+    domain: "social",
+    setting: "Sector call, investment committee",
+    scene: "You disagree with the head of research on a sector call. She has more seniority than you, and the room tends to move with her.",
+    prompt: "How do you handle the disagreement?",
+    options: [
+      { t: "Stay quiet and let the position ride. It is her call in the end.", s: 0 },
+      { t: "Speak to her beforehand, understand her reasoning, then frame your disagreement as a question the committee should test.", s: 3 },
+      { t: "Raise it in the meeting and let the strongest argument win.", s: 1 },
+      { t: "Send her your analysis by email afterwards so it is on record.", s: 2 }
+    ]
+  },
+  {
+    domain: "awareness",
+    setting: "360 feedback returned",
+    scene: "Three colleagues have independently described you as \u201chard to read in volatile markets.\u201d You genuinely do not recognise the description.",
+    prompt: "What do you do with feedback you do not recognise?",
+    options: [
+      { t: "Ask two of them for a specific recent moment, then check it against what you remember feeling that day.", s: 3 },
+      { t: "Discount it. They see you on your worst days, during drawdowns.", s: 0 },
+      { t: "Accept it is probably fair and resolve to be warmer in the morning meeting.", s: 2 },
+      { t: "Ask HR whether the comments came from the same team.", s: 1 }
+    ]
+  },
+  {
+    domain: "regulation",
+    setting: "Third week behind benchmark",
+    scene: "You have been sleeping badly. Yesterday you snapped at the operations team over a routine settlement query, and you noticed the room go quiet.",
+    prompt: "What is your response to your own behaviour?",
+    options: [
+      { t: "Nothing in particular. Everyone is tense in a drawdown and operations will understand.", s: 0 },
+      { t: "Apologise to operations specifically, and put a hard stop in the diary, recognising the drawdown is now spilling into how you treat people.", s: 3 },
+      { t: "Push harder. The performance gap is the real problem, and closing it will fix the mood.", s: 1 },
+      { t: "Take the weekend properly off and come back fresh on Monday.", s: 2 }
+    ]
+  },
+  {
+    domain: "empathy",
+    setting: "Client redemption call",
+    scene: "A long-standing client pulls a substantial mandate after a bad quarter. On the exit call he is curt, close to rude. Your relationship manager comes off the call visibly upset.",
+    prompt: "What is the first conversation you have with her?",
+    options: [
+      { t: "Note that the client was unprofessional, and move the discussion to replacing the mandate.", s: 0 },
+      { t: "Reassure her that clients get emotional at redemption and it is not personal.", s: 2 },
+      { t: "Ask her what she thinks he was actually protecting, and consider together what that money represented to him.", s: 3 },
+      { t: "Draft a firm performance-defence note to send the client.", s: 1 }
+    ]
+  },
+  {
+    domain: "social",
+    setting: "Two juniors, one research note",
+    scene: "Two analysts on your team have stopped speaking after a dispute over attribution on a published note. The desk has gone noticeably quiet around them.",
+    prompt: "What do you do about it?",
+    options: [
+      { t: "Meet each separately to understand it, then bring them together with a clear shared outcome and an agreed attribution rule going forward.", s: 3 },
+      { t: "Leave it. Professionals sort out their own differences.", s: 0 },
+      { t: "Reassign one of them to a different coverage area.", s: 1 },
+      { t: "Speak to each of them separately and tell them to keep it off the desk.", s: 2 }
+    ]
+  }
+];
+
+const DOMAIN_LABEL = {
+  awareness: "Self-Awareness",
+  regulation: "Self-Regulation",
+  empathy: "Empathy",
+  social: "Social Skills"
+};
+
+// Goleman's developmental sequence. Used to break ties: the foundational
+// domain wins, because regulation without awareness has nothing to work on.
+const PRIORITY = ["awareness", "regulation", "empathy", "social"];
+
+/* ==========================================================================
+   FALLBACK BRIEFS
+   Used only if the AI Gateway is unreachable. A live workshop must never
+   stall on a network call.
+   ========================================================================== */
+
+const FALLBACK = {
+  awareness: {
+    headline: "You reach for explanation before you reach for observation.",
+    read: "Across the situations you chose responses that account for what happened rather than notice what you felt while it happened. That is a fast, capable habit, and it is why the pattern has survived. The cost is that your own reactions arrive as conclusions rather than as data, which makes them very hard to question later.",
+    evidence: [
+      "In the review scenario you moved towards evidence or motive rather than towards what was happening in your chest.",
+      "Faced with feedback you did not recognise, you tested the source before you tested the claim."
+    ],
+    practices: [
+      { title: "Name it before the meeting ends", what: "When you feel a reaction in a meeting, put one word for it in the margin of your notes. Do not analyse it, just name it.", when: "Every investment committee and portfolio review" },
+      { title: "Run a two-line debrief", what: "After any conversation that stung, write what you felt and what you did. Two lines, nothing more.", when: "Within ten minutes of the conversation" },
+      { title: "Ask for the moment, not the verdict", what: "When you receive feedback you disagree with, ask for the specific occasion it came from. Then check it against your own memory of that day.", when: "Any 360, appraisal or informal criticism" }
+    ],
+    conversation: "\u201cBefore I respond, I want to say I noticed myself getting defensive just then.\u201d",
+    watch_for: "Turning self-awareness into another analytical exercise. If it produces a framework rather than a flinch, you are still explaining rather than noticing."
+  },
+  regulation: {
+    headline: "Your restraint depends on the market being calm.",
+    read: "Your choices suggest you know what good behaviour looks like and can produce it when conditions allow. Under pressure the pattern changes, and the responses you selected under drawdown conditions were faster and blunter than the ones you selected in steady weather. Colleagues learn to read the market from your manner, which quietly raises the temperature exactly when the desk needs it lowered.",
+    evidence: [
+      "On the red-day email you chose speed or avoidance over the pause that would have preserved both the correction and the relationship.",
+      "In sustained underperformance you addressed the performance gap before you addressed the spillover onto other people."
+    ],
+    practices: [
+      { title: "Impose a twenty-minute rule", what: "Any message written while you are activated goes to drafts for twenty minutes. Re-read it before sending, and send from a calmer version of yourself.", when: "Any day the book is down more than one percent" },
+      { title: "Separate the correction from the audience", what: "Errors get corrected privately and quickly. Theses get contested publicly and slowly. Never combine the two in one message.", when: "Whenever you spot a mistake in someone's work" },
+      { title: "Repair within the day", what: "When you snap at someone, name it to them specifically before you go home. Say what you did and what was actually going on.", when: "Same day, every time" }
+    ],
+    conversation: "\u201cI was short with you yesterday and it was about the book, not about you.\u201d",
+    watch_for: "Mistaking suppression for regulation. Saying nothing and going quiet is not composure, and the desk can tell the difference."
+  },
+  empathy: {
+    headline: "You address the position people take, not the thing underneath it.",
+    read: "Your responses show competence at handling what people say and less attention to what they are protecting when they say it. In a market where relationships carry more value than any single call, this leaves you solving stated problems while the real ones stay in the room. Compliance from a colleague reads to you as agreement, which is the most expensive misreading available on a desk.",
+    evidence: [
+      "When the portfolio manager agreed too quickly, you moved to confirm the message rather than to investigate the compliance.",
+      "In the redemption call you attended to the behaviour of the client rather than what the money represented to him."
+    ],
+    practices: [
+      { title: "Treat fast agreement as a flag", what: "When someone agrees quickly and takes no notes, stop and say what you are noticing. Fast agreement is usually the end of the conversation, not the middle of it.", when: "Any feedback or performance conversation" },
+      { title: "Ask what they were protecting", what: "After any difficult exchange, ask yourself what the other person was defending. Money, reputation, a promise they made to someone else.", when: "Every client escalation or internal conflict" },
+      { title: "Give the last three minutes away", what: "End one-to-ones by asking what you have missed, then stay silent long enough for a real answer to arrive.", when: "Every scheduled one-to-one" }
+    ],
+    conversation: "\u201cWhat do you think he was actually worried about, underneath the numbers?\u201d",
+    watch_for: "Performing empathy as technique. Asking someone to summarise back is a good tool and a poor substitute for genuine curiosity about what they think."
+  },
+  social: {
+    headline: "You are willing to be right in public and reluctant to build agreement in private.",
+    read: "Your choices favour clean, individual positions over the slower work of alignment. That reads as integrity, and often it is. It also means your good ideas arrive without sponsors, and conflict on your team gets managed by separation rather than resolution. Influence on an investment floor is built before the meeting, not during it.",
+    evidence: [
+      "On the sector disagreement you chose either silence or the open contest, rather than the conversation beforehand that would have made the challenge land.",
+      "With the two analysts you moved to contain the dispute rather than to resolve what caused it."
+    ],
+    practices: [
+      { title: "Pre-wire one position a week", what: "Before any meeting where you intend to disagree, speak to the person first. Understand their reasoning, then frame your view as a test the group should run.", when: "Every investment committee where you plan to push back" },
+      { title: "Resolve, do not reassign", what: "When two people on your team are in conflict, meet each separately, then bring them together with one agreed outcome and one new rule.", when: "Within a week of noticing the tension" },
+      { title: "Sponsor someone else's idea", what: "Find one good idea that is not yours and carry it into a meeting on the person's behalf. Say whose it is.", when: "Once a month, minimum" }
+    ],
+    conversation: "\u201cBefore Thursday, can I walk you through where I see this differently?\u201d",
+    watch_for: "Confusing pre-wiring with lobbying. The purpose is to understand their reasoning first, not to count votes."
+  }
+};
+
+/* ==========================================================================
+   STATE + LOGIC
+   ========================================================================== */
+
+const state = { i: 0, answers: new Array(SITUATIONS.length).fill(null) };
+
+const $ = (id) => document.getElementById(id);
+
+function show(id) {
+  document.querySelectorAll(".screen").forEach((s) => s.classList.remove("live"));
+  $(id).classList.add("live");
+  window.scrollTo({ top: 0, behavior: "instant" });
+}
+
+function buildLedger() {
+  const l = $("ledger");
+  l.innerHTML = SITUATIONS.map(() => "<i></i>").join("");
+  l.hidden = false;
+}
+
+function paintLedger() {
+  const seg = $("ledger").children;
+  for (let n = 0; n < seg.length; n++) {
+    seg[n].className = state.answers[n] !== null ? "done" : n === state.i ? "now" : "";
+  }
+}
+
+function render() {
+  const q = SITUATIONS[state.i];
+  $("counter").textContent = String(state.i + 1).padStart(2, "0") + " / " + String(SITUATIONS.length).padStart(2, "0");
+  $("dom-hint").textContent = "Feedback moment";
+  $("setting").textContent = q.setting;
+  $("scene").textContent = q.scene;
+  $("prompt").textContent = q.prompt;
+  $("back").style.visibility = state.i === 0 ? "hidden" : "visible";
+
+  const box = $("options");
+  box.innerHTML = "";
+  q.options.forEach((o, idx) => {
+    const b = document.createElement("button");
+    b.className = "opt" + (state.answers[state.i] === idx ? " picked" : "");
+    b.innerHTML = '<span class="tick"></span><span></span>';
+    b.querySelector("span:last-child").textContent = o.t;
+    b.addEventListener("click", () => choose(idx));
+    box.appendChild(b);
+  });
+
+  paintLedger();
+}
+
+function choose(idx) {
+  state.answers[state.i] = idx;
+  render();
+  setTimeout(() => {
+    if (state.i < SITUATIONS.length - 1) {
+      state.i++;
+      render();
+    } else {
+      finish();
+    }
+  }, 260);
+}
+
+function tally() {
+  const scores = { awareness: 0, regulation: 0, empathy: 0, social: 0 };
+  const responses = [];
+  state.answers.forEach((pick, n) => {
+    const q = SITUATIONS[n];
+    const o = q.options[pick];
+    scores[q.domain] += o.s;
+    responses.push({ situation: q.setting + " — " + q.prompt, choice: o.t, domain: q.domain, score: o.s });
+  });
+  let focus = PRIORITY[0];
+  PRIORITY.forEach((d) => { if (scores[d] < scores[focus]) focus = d; });
+  return { scores, responses, focus };
+}
+
+const WAIT_LINES = [
+  "Reading your pattern",
+  "Mapping to the four domains",
+  "Isolating the development focus",
+  "Writing your brief"
+];
+
+async function finish() {
+  const { scores, responses, focus } = tally();
+  show("s-wait");
+  $("ledger").hidden = true;
+
+  let n = 0;
+  const cycle = setInterval(() => {
+    n = (n + 1) % WAIT_LINES.length;
+    $("waitmsg").textContent = WAIT_LINES[n];
+  }, 1900);
+
+  let plan = null;
+  let degraded = false;
+
+  try {
+    const res = await fetch("/api/coach", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ focus, scores, responses })
+    });
+    if (!res.ok) throw new Error("bad status");
+    const data = await res.json();
+    if (!data.plan || !data.plan.headline) throw new Error("bad shape");
+    plan = data.plan;
+  } catch (e) {
+    plan = FALLBACK[focus];
+    degraded = true;
+  }
+
+  clearInterval(cycle);
+  paint(plan, scores, focus, degraded);
+  show("s-out");
+}
+
+function paint(plan, scores, focus, degraded) {
+  $("datestamp").textContent = new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+
+  $("fallback-notice").innerHTML = degraded
+    ? '<div class="notice no-print">Working from the standard brief for this domain. The tailored version could not be generated.</div>'
+    : "";
+
+  const bars = $("bars");
+  bars.innerHTML = "";
+  PRIORITY.forEach((d) => {
+    const pct = Math.round((scores[d] / 6) * 100);
+    const row = document.createElement("div");
+    row.className = "bar-row" + (d === focus ? " focus" : "");
+    row.innerHTML =
+      '<div class="nm">' + DOMAIN_LABEL[d] + "</div>" +
+      '<div class="track"><div class="fill" style="width:0%"></div></div>' +
+      '<div class="val">' + scores[d] + "/6</div>";
+    bars.appendChild(row);
+    requestAnimationFrame(() => { row.querySelector(".fill").style.width = pct + "%"; });
+  });
+
+  $("focusline").textContent = "Development focus: " + DOMAIN_LABEL[focus];
+  $("headline").textContent = plan.headline || "";
+  $("read").textContent = plan.read || "";
+
+  $("evidence").innerHTML = (plan.evidence || []).map((t) => "<li></li>").join("");
+  (plan.evidence || []).forEach((t, n) => { $("evidence").children[n].textContent = t; });
+
+  const pr = $("practices");
+  pr.innerHTML = "";
+  (plan.practices || []).forEach((p, n) => {
+    const el = document.createElement("div");
+    el.className = "practice";
+    el.innerHTML =
+      '<div class="no">' + String(n + 1).padStart(2, "0") + "</div>" +
+      "<div><h4></h4><p></p><div class='hook'></div></div>";
+    el.querySelector("h4").textContent = p.title || "";
+    el.querySelector("p").textContent = p.what || "";
+    el.querySelector(".hook").textContent = p.when || "";
+    pr.appendChild(el);
+  });
+
+  $("script").textContent = plan.conversation || "";
+  $("warn").textContent = plan.watch_for || "";
+}
+
+/* ---------- wiring ---------- */
+
+$("begin").addEventListener("click", () => {
+  buildLedger();
+  show("s-run");
+  render();
+});
+
+$("back").addEventListener("click", () => {
+  if (state.i > 0) { state.i--; render(); }
+});
+
+$("download").addEventListener("click", () => {
+  const nm = $("pname").value.trim();
+  const prev = document.title;
+  document.title = nm ? "EI Brief — " + nm : "EI Profile Brief";
+  window.print();
+  setTimeout(() => { document.title = prev; }, 800);
+});
+
+$("restart").addEventListener("click", () => {
+  state.i = 0;
+  state.answers = new Array(SITUATIONS.length).fill(null);
+  $("pname").value = "";
+  $("ledger").hidden = true;
+  show("s-intro");
+});
+
+document.addEventListener("keydown", (e) => {
+  if (!$("s-run").classList.contains("live")) return;
+  const n = parseInt(e.key, 10);
+  if (n >= 1 && n <= 4) choose(n - 1);
+  if (e.key === "Backspace" && state.i > 0) { e.preventDefault(); state.i--; render(); }
+});
+</script>
+</body>
+</html>
