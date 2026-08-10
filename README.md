@@ -94,6 +94,30 @@ The Netlify CLI supports the AI Gateway locally, so this should work
 without any `.env` file. For the class-code gate while testing locally,
 create a `.env` file (not committed) with `ACCESS_CODE=...`.
 
+## Troubleshooting: "The coach did not respond"
+
+This app's system prompt is unusually large (~16,000 tokens — it's your
+entire authored document), and Netlify's standard functions have a
+synchronous execution limit (10 seconds by default, 26 seconds on Pro on
+request). A full reply — especially the Profile Card at the end — can take
+longer than that to generate in full.
+
+To fix this, `coach.mjs` streams Claude's reply straight through to the
+browser token-by-token instead of waiting to assemble the whole message
+first, and the system prompt is marked for prompt caching so turns after
+the first one in a session skip re-processing all ~16k tokens (cached for
+5 minutes). Between the two, most turns should complete comfortably.
+
+If you still see this error after redeploying with these changes:
+- Confirm the deploy succeeded and check **Functions → coach → Logs** in
+  the Netlify dashboard for the actual error — it will show a more
+  specific message than the browser's generic one.
+- If you're on a Pro plan and it's still tight, you can request the
+  extended 26-second synchronous function timeout from Netlify support.
+- As a last resort, lowering `maxTokens` in `coach.mjs` (e.g. to 2048)
+  shortens the longest possible reply and reduces the risk further,
+  though the Profile Card format is fairly verbose by design.
+
 ## Notes
 
 - Uses `claude-sonnet-5` via Netlify's AI Gateway, at the temperature

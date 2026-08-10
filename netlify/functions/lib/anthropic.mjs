@@ -1,12 +1,11 @@
 const ANTHROPIC_VERSION = '2023-06-01';
 const MODEL = 'claude-sonnet-5';
 
-// Calls Claude via Netlify's AI Gateway and returns the raw reply text.
-// Netlify auto-injects ANTHROPIC_API_KEY and ANTHROPIC_BASE_URL into every
+// Resolves the AI Gateway credentials Netlify auto-injects into every
 // Netlify Function once the site has had one production deploy — no
 // Anthropic account or manual key needed. Usage is billed as Netlify
 // credits on your Netlify plan, not as a separate Anthropic bill.
-export async function callClaude(system, messages, { maxTokens = 4096, temperature = 0.35 } = {}) {
+export function getCredentials() {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   const baseUrl = process.env.ANTHROPIC_BASE_URL || 'https://api.anthropic.com';
 
@@ -16,7 +15,26 @@ export async function callClaude(system, messages, { maxTokens = 4096, temperatu
     );
   }
 
-  const response = await fetch(`${baseUrl}/v1/messages`, {
+  return { apiKey, baseUrl };
+}
+
+// Opens a streaming call to Claude via the AI Gateway and returns the raw
+// upstream Response so its body (a ReadableStream of SSE bytes) can be
+// piped straight through to the browser. This matters here specifically:
+// the system prompt is the full ~16k-token authored document, and a full
+// Profile Card completion can take longer to generate than Netlify's
+// synchronous function time limit (10s default / 26s on Pro) — streaming
+// means the browser starts receiving tokens immediately instead of the
+// function trying to buffer the whole reply before responding.
+//
+// The system prompt is marked with an ephemeral cache_control breakpoint,
+// so turns after the first one in a session reuse the cached prompt
+// (default 5-minute TTL) instead of reprocessing all ~16k tokens again —
+// this alone meaningfully cuts latency turn-over-turn within a session.
+export async function streamClaude(systemPrompt, messages, { maxTokens = 4096, temperature = 0.35 } = {}) {
+  const { apiKey, baseUrl } = getCredentials();
+
+  const upstream = await fetch(`${baseUrl}/v1/messages`, {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
@@ -27,20 +45,24 @@ export async function callClaude(system, messages, { maxTokens = 4096, temperatu
       model: MODEL,
       max_tokens: maxTokens,
       temperature,
-      system,
+      stream: true,
+      system: [
+        {
+          type: 'text',
+          text: systemPrompt,
+          cache_control: { type: 'ephemeral' },
+        },
+      ],
       messages,
     }),
   });
 
-  if (!response.ok) {
-    const errText = await response.text();
-    throw new Error(`Anthropic API error (${response.status}): ${errText}`);
+  if (!upstream.ok || !upstream.body) {
+    const errText = await upstream.text().catch(() => '');
+    throw new Error(`Anthropic API error (${upstream.status}): ${errText}`);
   }
 
-  const data = await response.json();
-  const textBlock = (data.content || []).find((b) => b.type === 'text');
-  if (!textBlock) throw new Error('No text response received from the model.');
-  return textBlock.text;
+  return upstream;
 }
 
 // If you set an ACCESS_CODE environment variable in Netlify, every request

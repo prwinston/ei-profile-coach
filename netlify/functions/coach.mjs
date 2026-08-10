@@ -1,5 +1,5 @@
 import { SYSTEM_PROMPT } from './lib/system-prompt.mjs';
-import { callClaude, checkAccessCode } from './lib/anthropic.mjs';
+import { streamClaude, checkAccessCode } from './lib/anthropic.mjs';
 
 // Safety cap so an unusually long session can't grow the request without bound.
 // A full 8-scenario session plus reflection comfortably fits well inside this.
@@ -33,12 +33,21 @@ export default async (req) => {
   }));
 
   try {
-    const reply = await callClaude(SYSTEM_PROMPT, trimmed, { maxTokens: 4096, temperature: 0.35 });
-    return new Response(JSON.stringify({ reply }), {
+    const upstream = await streamClaude(SYSTEM_PROMPT, trimmed, { maxTokens: 4096, temperature: 0.35 });
+
+    // Pass Claude's SSE stream straight through to the browser — the
+    // client (public/app.js) parses content_block_delta events itself.
+    return new Response(upstream.body, {
       status: 200,
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+      },
     });
   } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), { status: 502 });
+    return new Response(JSON.stringify({ error: err.message }), {
+      status: 502,
+      headers: { 'Content-Type': 'application/json' },
+    });
   }
 };

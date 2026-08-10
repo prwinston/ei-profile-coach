@@ -9,7 +9,7 @@ const state = {
   started: false,
   code: '',
   input: '',
-  messages: [], // { role: 'user' | 'assistant', content: string, hidden?: boolean }
+  messages: [], // { role: 'user' | 'assistant', content: string, hidden?: boolean, streaming?: boolean }
   loading: false,
   error: null,
 };
@@ -49,25 +49,93 @@ function friendlyError(rawMessage) {
   return 'The coach did not respond. Please try sending your message again.';
 }
 
-async function callCoach(messagesForApi) {
-  const res = await fetch('/api/coach', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ code: state.code, messages: messagesForApi }),
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || 'Request failed');
-  return data.reply;
+// Updates just the streaming bubble's own HTML + scroll position, instead
+// of re-rendering the whole chat screen on every token — a full render()
+// per token would repeatedly rebuild the composer and steal input focus.
+function updateStreamingBubble(content) {
+  const el = document.getElementById('streaming-bubble');
+  if (!el) return;
+  el.innerHTML = content ? renderMarkdownLite(content) : `${icons.spinner} Thinking…`;
+  const messagesEl = document.getElementById('messages');
+  if (messagesEl) messagesEl.scrollTop = messagesEl.scrollHeight;
 }
 
 async function runCoachTurn() {
+  const assistantMsg = { role: 'assistant', content: '', streaming: true };
+  let streamStarted = false;
+
   try {
     const apiMessages = state.messages.map(({ role, content }) => ({ role, content }));
-    const reply = await callCoach(apiMessages);
-    state.messages.push({ role: 'assistant', content: reply });
+    const res = await fetch('/api/coach', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: state.code, messages: apiMessages }),
+    });
+
+    const contentType = res.headers.get('content-type') || '';
+
+    // Error responses come back as JSON; a healthy call comes back as an
+    // SSE stream (text/event-stream) — branch on that rather than on
+    // res.ok alone, since a streamed response is also status 200.
+    if (!res.ok || contentType.includes('application/json')) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || 'Request failed');
+    }
+
+    state.messages.push(assistantMsg);
+    streamStarted = true;
+    render();
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      const events = buffer.split('\n\n');
+      buffer = events.pop() ?? '';
+
+      for (const evt of events) {
+        const dataLine = evt.split('\n').find((l) => l.startsWith('data:'));
+        if (!dataLine) continue;
+        const jsonStr = dataLine.slice(5).trim();
+        if (!jsonStr) continue;
+
+        let parsed;
+        try {
+          parsed = JSON.parse(jsonStr);
+        } catch {
+          continue;
+        }
+
+        if (parsed.type === 'content_block_delta' && parsed.delta?.type === 'text_delta') {
+          assistantMsg.content += parsed.delta.text;
+          updateStreamingBubble(assistantMsg.content);
+        } else if (parsed.type === 'error') {
+          throw new Error(parsed.error?.message || 'Streaming error');
+        }
+      }
+    }
+
+    if (!assistantMsg.content) {
+      throw new Error('Empty response received.');
+    }
   } catch (e) {
-    state.error = friendlyError(e.message);
+    if (!streamStarted) {
+      state.error = friendlyError(e.message);
+    } else if (!assistantMsg.content) {
+      state.messages.pop(); // drop the empty placeholder bubble
+      state.error = friendlyError(e.message);
+    } else {
+      // Partial content arrived before the stream broke — keep it visible
+      // rather than discarding a real (if incomplete) reply.
+      state.error = 'The response may have been cut short. You can continue the conversation below.';
+    }
   } finally {
+    delete assistantMsg.streaming;
     state.loading = false;
     render();
   }
@@ -125,21 +193,22 @@ function renderChat() {
   const visible = state.messages.filter((m) => !m.hidden);
 
   const messagesHtml = visible
-    .map(
-      (m) => `
-        <div class="msg-row ${m.role === 'user' ? 'user' : 'assistant'}">
-          <div class="bubble ${m.role === 'user' ? 'user' : 'assistant'}">${renderMarkdownLite(m.content)}</div>
-        </div>`
-    )
+    .map((m) => {
+      const roleClass = m.role === 'user' ? 'user' : 'assistant';
+      const bubbleId = m.streaming ? ' id="streaming-bubble"' : '';
+      const bubbleContent = m.streaming && !m.content
+        ? `${icons.spinner} Thinking…`
+        : renderMarkdownLite(m.content);
+      return `
+        <div class="msg-row ${roleClass}">
+          <div class="bubble ${roleClass}"${bubbleId}>${bubbleContent}</div>
+        </div>`;
+    })
     .join('');
-
-  const thinkingHtml = state.loading
-    ? `<div class="msg-row assistant"><div class="bubble assistant thinking">${icons.spinner} Thinking…</div></div>`
-    : '';
 
   appBody.innerHTML = `
     <div class="chat-screen">
-      <div class="messages" id="messages">${messagesHtml}${thinkingHtml}</div>
+      <div class="messages" id="messages">${messagesHtml}</div>
       ${state.error ? `<div class="error-line">${escapeHtml(state.error)}</div>` : ''}
       <div class="composer">
         <input type="text" id="composer-input" placeholder="Type your response…" value="${escapeHtml(state.input)}" ${state.loading ? 'disabled' : ''}>
