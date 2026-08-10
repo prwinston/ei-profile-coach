@@ -1,5 +1,5 @@
 import { SYSTEM_PROMPT } from './lib/system-prompt.mjs';
-import { streamClaude, checkAccessCode } from './lib/anthropic.mjs';
+import { streamClaudeText, checkAccessCode } from './lib/anthropic.mjs';
 
 // Safety cap so an unusually long session can't grow the request without bound.
 // A full 8-scenario session plus reflection comfortably fits well inside this.
@@ -33,14 +33,13 @@ export default async (req) => {
   }));
 
   try {
-    const upstream = await streamClaude(SYSTEM_PROMPT, trimmed, { maxTokens: 2048, temperature: 0.35 });
+    const textStream = await streamClaudeText(SYSTEM_PROMPT, trimmed, { maxTokens: 4096, temperature: 0.35 });
 
-    // Pass Claude's SSE stream straight through to the browser — the
-    // client (public/app.js) parses content_block_delta events itself.
-    return new Response(upstream.body, {
+    // Plain text, in order — the client just reads and appends.
+    return new Response(textStream, {
       status: 200,
       headers: {
-        'Content-Type': 'text/event-stream',
+        'Content-Type': 'text/plain; charset=utf-8',
         'Cache-Control': 'no-cache',
       },
     });

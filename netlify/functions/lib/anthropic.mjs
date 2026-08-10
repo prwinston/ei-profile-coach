@@ -18,20 +18,24 @@ export function getCredentials() {
   return { apiKey, baseUrl };
 }
 
-// Opens a streaming call to Claude via the AI Gateway and returns the raw
-// upstream Response so its body (a ReadableStream of SSE bytes) can be
-// piped straight through to the browser. This matters here specifically:
-// the system prompt is the full ~16k-token authored document, and a full
-// Profile Card completion can take longer to generate than Netlify's
-// synchronous function time limit (10s default / 26s on Pro) — streaming
-// means the browser starts receiving tokens immediately instead of the
-// function trying to buffer the whole reply before responding.
+// Calls Claude via the AI Gateway with streaming on, and returns a plain
+// ReadableStream of decoded text — just the reply's characters, in order,
+// with no envelope around them. All the SSE parsing (event/data lines,
+// JSON frames, event types) happens once, here, in a single well-defined
+// place, instead of being re-implemented in browser JS where it would be
+// the least tested, most failure-prone part of the app. The client just
+// reads bytes and appends them; nothing there can misparse a frame.
 //
-// The system prompt is marked with an ephemeral cache_control breakpoint,
-// so turns after the first one in a session reuse the cached prompt
-// (default 5-minute TTL) instead of reprocessing all ~16k tokens again —
-// this alone meaningfully cuts latency turn-over-turn within a session.
-export async function streamClaude(systemPrompt, messages, { maxTokens = 4096, temperature = 0.35 } = {}) {
+// Streaming is still what's happening under the hood — the browser starts
+// receiving text immediately rather than the function buffering a whole
+// reply before responding, which matters because Netlify's synchronous
+// function time limit (10s default / 26s on Pro) can be shorter than a
+// full coaching-block completion takes to generate.
+//
+// The system prompt carries an ephemeral cache_control breakpoint, so
+// turns after the first one in a session reuse the cached prompt (default
+// 5-minute TTL) instead of reprocessing it from scratch.
+export async function streamClaudeText(systemPrompt, messages, { maxTokens = 4096, temperature = 0.35 } = {}) {
   const { apiKey, baseUrl } = getCredentials();
 
   const upstream = await fetch(`${baseUrl}/v1/messages`, {
@@ -62,7 +66,46 @@ export async function streamClaude(systemPrompt, messages, { maxTokens = 4096, t
     throw new Error(`Anthropic API error (${upstream.status}): ${errText}`);
   }
 
-  return upstream;
+  const reader = upstream.body.getReader();
+  const decoder = new TextDecoder();
+  const encoder = new TextEncoder();
+  let buffer = '';
+
+  return new ReadableStream({
+    async pull(controller) {
+      const { done, value } = await reader.read();
+      if (done) {
+        controller.close();
+        return;
+      }
+
+      buffer += decoder.decode(value, { stream: true });
+      const events = buffer.split('\n\n');
+      buffer = events.pop() ?? '';
+
+      for (const evt of events) {
+        const dataLine = evt.split('\n').find((l) => l.startsWith('data:'));
+        if (!dataLine) continue;
+
+        const jsonStr = dataLine.slice(5).trim();
+        if (!jsonStr) continue;
+
+        let parsed;
+        try {
+          parsed = JSON.parse(jsonStr);
+        } catch {
+          continue;
+        }
+
+        if (parsed.type === 'content_block_delta' && parsed.delta?.type === 'text_delta') {
+          controller.enqueue(encoder.encode(parsed.delta.text));
+        } else if (parsed.type === 'error') {
+          controller.error(new Error(parsed.error?.message || 'Streaming error'));
+          return;
+        }
+      }
+    },
+  });
 }
 
 // If you set an ACCESS_CODE environment variable in Netlify, every request

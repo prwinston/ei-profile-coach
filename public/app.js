@@ -88,36 +88,12 @@ async function runCoachTurn() {
 
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
-    let buffer = '';
 
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-
-      const events = buffer.split('\n\n');
-      buffer = events.pop() ?? '';
-
-      for (const evt of events) {
-        const dataLine = evt.split('\n').find((l) => l.startsWith('data:'));
-        if (!dataLine) continue;
-        const jsonStr = dataLine.slice(5).trim();
-        if (!jsonStr) continue;
-
-        let parsed;
-        try {
-          parsed = JSON.parse(jsonStr);
-        } catch {
-          continue;
-        }
-
-        if (parsed.type === 'content_block_delta' && parsed.delta?.type === 'text_delta') {
-          assistantMsg.content += parsed.delta.text;
-          updateStreamingBubble(assistantMsg.content);
-        } else if (parsed.type === 'error') {
-          throw new Error(parsed.error?.message || 'Streaming error');
-        }
-      }
+      assistantMsg.content += decoder.decode(value, { stream: true });
+      updateStreamingBubble(assistantMsg.content);
     }
 
     if (!assistantMsg.content) {

@@ -108,6 +108,12 @@ first, and the system prompt is marked for prompt caching so turns after
 the first one in a session skip re-processing all ~16k tokens (cached for
 5 minutes). Between the two, most turns should complete comfortably.
 
+The SSE parsing (event/data lines, JSON frames) happens once, server-side,
+in `streamClaudeText()` (`netlify/functions/lib/anthropic.mjs`) — it hands
+the browser a plain stream of text characters with no envelope around
+them. The client just reads bytes and appends them; no event-format
+parsing runs in browser JS.
+
 If you still see this error after redeploying with these changes:
 - Confirm the deploy succeeded and check **Functions → coach → Logs** in
   the Netlify dashboard for the actual error — it will show a more
