@@ -33,7 +33,7 @@ export default async (req) => {
   }));
 
   try {
-    const upstream = await streamClaude(SYSTEM_PROMPT, trimmed, { maxTokens: 4096, temperature: 0.35 });
+    const upstream = await streamClaude(SYSTEM_PROMPT, trimmed, { maxTokens: 2048, temperature: 0.35 });
 
     // Pass Claude's SSE stream straight through to the browser — the
     // client (public/app.js) parses content_block_delta events itself.
