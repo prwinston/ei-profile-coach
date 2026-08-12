@@ -313,7 +313,7 @@
       <div class="setting" id="setting"></div>
       <p class="scene" id="scene"></p>
       <p class="prompt" id="prompt"></p>
-      <div class="options" id="options"></div>
+      <div class="options" id="options" role="radiogroup" aria-label="Response options"></div>
       <div class="navrow">
         <button class="linkback" id="back">← Previous</button>
         <span class="stamp" id="hint">Select the closest match</span>
@@ -325,7 +325,7 @@
   <section class="screen" id="s-wait">
     <div class="waiting">
       <div class="bar"><i></i></div>
-      <p id="waitmsg">Reading your pattern</p>
+      <p id="waitmsg" role="status" aria-live="polite">Reading your pattern</p>
     </div>
   </section>
 
@@ -569,7 +569,25 @@ const FALLBACK = {
    STATE + LOGIC
    ========================================================================== */
 
-const state = { i: 0, answers: new Array(SITUATIONS.length).fill(null) };
+const state = { i: 0, answers: new Array(SITUATIONS.length).fill(null), locked: false };
+
+// The maturity ladder is written 0-3 in the source. Shuffling per participant
+// means no two people see the same order, and nobody can pattern-match the
+// position of the "right" answer from the person next to them.
+function shuffled(list) {
+  const a = list.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+let DECK = [];
+function dealDeck() {
+  DECK = SITUATIONS.map((s) => ({ ...s, options: shuffled(s.options) }));
+}
+dealDeck();
 
 const $ = (id) => document.getElementById(id);
 
@@ -593,7 +611,7 @@ function paintLedger() {
 }
 
 function render() {
-  const q = SITUATIONS[state.i];
+  const q = DECK[state.i];
   $("counter").textContent = String(state.i + 1).padStart(2, "0") + " / " + String(SITUATIONS.length).padStart(2, "0");
   $("dom-hint").textContent = "Feedback moment";
   $("setting").textContent = q.setting;
@@ -605,7 +623,10 @@ function render() {
   box.innerHTML = "";
   q.options.forEach((o, idx) => {
     const b = document.createElement("button");
-    b.className = "opt" + (state.answers[state.i] === idx ? " picked" : "");
+    const picked = state.answers[state.i] === idx;
+    b.className = "opt" + (picked ? " picked" : "");
+    b.setAttribute("role", "radio");
+    b.setAttribute("aria-checked", picked ? "true" : "false");
     b.innerHTML = '<span class="tick"></span><span></span>';
     b.querySelector("span:last-child").textContent = o.t;
     b.addEventListener("click", () => choose(idx));
@@ -616,14 +637,26 @@ function render() {
 }
 
 function choose(idx) {
+  // Without this lock, a double-click or a fast double keypress fires two
+  // advances and silently skips a scenario, leaving a null in the answers
+  // array. Everything downstream then scores wrong.
+  if (state.locked) return;
+  const q = DECK[state.i];
+  if (!q || idx < 0 || idx >= q.options.length) return;
+
+  state.locked = true;
   state.answers[state.i] = idx;
   render();
+
   setTimeout(() => {
-    if (state.i < SITUATIONS.length - 1) {
-      state.i++;
-      render();
-    } else {
+    const next = state.answers.indexOf(null);
+    if (next === -1) {
+      state.locked = false;
       finish();
+    } else {
+      state.i = next;
+      state.locked = false;
+      render();
     }
   }, 260);
 }
@@ -632,8 +665,9 @@ function tally() {
   const scores = { awareness: 0, regulation: 0, empathy: 0, social: 0 };
   const responses = [];
   state.answers.forEach((pick, n) => {
-    const q = SITUATIONS[n];
+    const q = DECK[n];
     const o = q.options[pick];
+    if (!o) return;
     scores[q.domain] += o.s;
     responses.push({ situation: q.setting + " — " + q.prompt, choice: o.t, domain: q.domain, score: o.s });
   });
@@ -663,19 +697,27 @@ async function finish() {
   let plan = null;
   let degraded = false;
 
+  // The edge function opens its response immediately and streams the body in
+  // when the model finishes, so res.ok only tells us the headers arrived.
+  // The real success signal is a plan in the payload.
+  const abort = new AbortController();
+  const giveUp = setTimeout(() => abort.abort(), 40000);
+
   try {
     const res = await fetch("/api/coach", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ focus, scores, responses })
+      body: JSON.stringify({ focus, scores, responses }),
+      signal: abort.signal
     });
-    if (!res.ok) throw new Error("bad status");
     const data = await res.json();
-    if (!data.plan || !data.plan.headline) throw new Error("bad shape");
+    if (!data || !data.plan || !data.plan.headline) throw new Error("no plan");
     plan = data.plan;
   } catch (e) {
     plan = FALLBACK[focus];
     degraded = true;
+  } finally {
+    clearTimeout(giveUp);
   }
 
   clearInterval(cycle);
@@ -741,8 +783,15 @@ $("back").addEventListener("click", () => {
   if (state.i > 0) { state.i--; render(); }
 });
 
+let namePrompted = false;
 $("download").addEventListener("click", () => {
   const nm = $("pname").value.trim();
+  if (!nm && !namePrompted) {
+    namePrompted = true;
+    $("pname").focus();
+    $("pname").placeholder = "Type your name here first";
+    return;
+  }
   const prev = document.title;
   document.title = nm ? "EI Brief — " + nm : "EI Profile Brief";
   window.print();
@@ -752,6 +801,8 @@ $("download").addEventListener("click", () => {
 $("restart").addEventListener("click", () => {
   state.i = 0;
   state.answers = new Array(SITUATIONS.length).fill(null);
+  state.locked = false;
+  dealDeck();
   $("pname").value = "";
   $("ledger").hidden = true;
   show("s-intro");
@@ -759,8 +810,13 @@ $("restart").addEventListener("click", () => {
 
 document.addEventListener("keydown", (e) => {
   if (!$("s-run").classList.contains("live")) return;
+  if (e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
+  if (state.locked) return;
+
   const n = parseInt(e.key, 10);
-  if (n >= 1 && n <= 4) choose(n - 1);
+  const count = DECK[state.i] ? DECK[state.i].options.length : 0;
+  if (n >= 1 && n <= count) { e.preventDefault(); choose(n - 1); return; }
+
   if (e.key === "Backspace" && state.i > 0) { e.preventDefault(); state.i--; render(); }
 });
 </script>
